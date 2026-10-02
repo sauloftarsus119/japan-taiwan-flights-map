@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台灣－日本 直飛定期航線地圖（2026 年 10 月）</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+  :root { --panel-w: 35%; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; font-family: "Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif; color:#222; }
+  #app { display:flex; height:100vh; width:100vw; }
+  #map { flex: 0 0 65%; height:100%; background:#eef2f5; }
+  #side { flex: 1 1 35%; height:100%; display:flex; flex-direction:column; border-left:1px solid #ddd; background:#fafafa; min-width:320px; }
+  #side header { padding:10px 14px 6px; border-bottom:1px solid #e3e3e3; background:#fff; }
+  #side h1 { font-size:17px; margin:0 0 4px; }
+  #side .sub { font-size:12px; color:#666; }
+  #controls { padding:8px 14px; background:#fff; border-bottom:1px solid #e3e3e3; font-size:13px; }
+  #controls .row { margin:3px 0; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  #controls label.tw { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:12px; border:1px solid #ccc; cursor:pointer; user-select:none; background:#fff; }
+  #controls label.tw input { margin:0; }
+  .sw { display:inline-block; width:12px; height:12px; border-radius:50%; }
+  #tablewrap { flex:1; overflow:auto; }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  thead th { position:sticky; top:0; background:#f0f3f6; z-index:2; text-align:left; padding:6px 6px; border-bottom:1px solid #cfd6dd; cursor:pointer; white-space:nowrap; }
+  thead th .arrow { color:#999; font-size:10px; }
+  tbody td { padding:5px 6px; border-bottom:1px solid #eee; vertical-align:top; }
+  tr.grp td { background:#e9eef3; font-weight:bold; color:#345; padding:4px 6px; position:sticky; top:29px; z-index:1; }
+  tr.route { cursor:default; }
+  tr.route:hover, tr.route.hl { background:#fff4c2; }
+  tr.route.hidden, tr.grp.hidden { display:none; }
+  .code { font-family: ui-monospace, Menlo, Consolas, monospace; color:#555; font-size:11px; }
+  .badge { display:inline-block; font-size:10.5px; padding:0 5px; border-radius:8px; margin:1px 2px 1px 0; white-space:nowrap; }
+  .b-seasonal { background:#fde2c8; color:#8a4500; }
+  .b-new { background:#d6f0d6; color:#1d6b1d; }
+  .b-limited { background:#f7d4d4; color:#8a1d1d; }
+  .b-uncertain { background:#e4ddf3; color:#4b2d84; }
+  .b-5th { background:#dde8f7; color:#24497d; }
+  .tw-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  footer { font-size:11px; color:#555; padding:8px 14px; border-top:1px solid #e3e3e3; background:#fff; max-height:24%; overflow:auto; line-height:1.5; }
+  footer a { color:#2a6fb0; }
+  .legend { background:rgba(255,255,255,.92); padding:8px 10px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.25); font-size:12px; line-height:1.6; }
+  .legend .ln { display:inline-block; width:22px; height:0; border-top:3px solid; vertical-align:middle; margin-right:5px; border-radius:2px; }
+  .legend .ln.dash { border-top-style:dashed; }
+  .apt-label { background:transparent; border:none; box-shadow:none; font-size:10.5px; font-weight:600; color:#333; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; padding:0; white-space:nowrap; }
+  .apt-label.tw { color:#111; font-size:12px; }
+  .apt-label:before { display:none; }
+  .apt-label.hl { color:#c00; font-size:13px; }
+  .leaflet-tooltip.route-tip { font-size:12.5px; line-height:1.5; width:300px; white-space:normal; }
+  #fallback { display:none; padding:20px; }
+  .osm-faded { filter: grayscale(1) brightness(1.08) contrast(.85); opacity:.75; }
+  .stat { font-weight:bold; color:#1a4f8a; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"><div id="fallback">⚠️ 無法載入 Leaflet 地圖函式庫（需要網路連線至 unpkg.com）。右側表格仍可使用。</div></div>
+  <div id="side">
+    <header>
+      <h1>✈️ 台灣－日本 直飛定期航線</h1>
+      <div class="sub">資料時點：2026 年 10 月 2 日（2026 夏季班表末段＋2026/27 冬季班表 10/25 起）｜共 <span class="stat" id="nRoutes"></span> 條航線、<span class="stat" id="nJp"></span> 個日本機場、<span class="stat" id="nTw"></span> 個台灣機場</div>
+    </header>
+    <div id="controls">
+      <div class="row"><b>台灣機場：</b><span id="twFilters"></span></div>
+      <div class="row"><b>分組：</b>
+        <select id="groupBy">
+          <option value="region">依日本地區</option>
+          <option value="tw">依台灣機場</option>
+          <option value="none">不分組</option>
+        </select>
+        <label><input type="checkbox" id="showLabels" checked> 顯示機場名稱</label>
+      </div>
+      <div class="row" style="color:#666;font-size:12px">滑鼠移到表格列或地圖航線上即可高亮；移到日本機場可顯示其所有航線。點表頭可排序。</div>
+    </div>
+    <div id="tablewrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="jp">日本機場 <span class="arrow"></span></th>
+          <th data-k="tw">台灣機場 <span class="arrow"></span></th>
+          <th data-k="nAir">航空公司 <span class="arrow"></span></th>
+          <th data-k="note">備註 <span class="arrow"></span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <footer id="foot"></footer>
+  </div>
+</div>
+<script>
+// ===================== 資料 =====================
+const TW = {
+  TPE:{name:"桃園國際機場", short:"桃園", lat:25.0777, lng:121.2328, color:"#d62728", k:0.06, lab:"left"},
+  TSA:{name:"臺北松山機場", short:"松山", lat:25.0694, lng:121.5525, color:"#8e44ad", k:0.30, lab:"right"},
+  RMQ:{name:"臺中國際機場", short:"臺中", lat:24.2647, lng:120.6208, color:"#2ca02c", k:-0.05, lab:"left"},
+  TNN:{name:"臺南機場",     short:"臺南", lat:22.9504, lng:120.2057, color:"#ff7f0e", k:-0.30, lab:"left"},
+  KHH:{name:"高雄國際機場", short:"高雄", lat:22.5771, lng:120.3500, color:"#1f77b4", k:-0.16, lab:"right"}
+};
+const TW_ORDER = ["TPE","TSA","RMQ","TNN","KHH"];
+const SPREAD = {TPE:0.62, TSA:0, RMQ:0.42, TNN:0.3, KHH:0.5};
+const REGIONS = ["北海道","東北","關東","中部・北陸","近畿","中國","四國","九州","沖繩"];
+const JP = {
+  CTS:{name:"札幌新千歲", region:"北海道", lat:42.7752, lng:141.6923, lab:"right"},
+  HKD:{name:"函館",       region:"北海道", lat:41.7700, lng:140.8219, lab:"left"},
+  AOJ:{name:"青森",       region:"東北", lat:40.7347, lng:140.6908, lab:"left"},
+  AXT:{name:"秋田",       region:"東北", lat:39.6156, lng:140.2186, lab:"left"},
+  HNA:{name:"岩手花卷",   region:"東北", lat:39.4286, lng:141.1353, lab:"right"},
+  SDJ:{name:"仙台",       region:"東北", lat:38.1397, lng:140.9169, lab:"right"},
+  FKS:{name:"福島",       region:"東北", lat:37.2274, lng:140.4308, lab:"right"},
+  NRT:{name:"東京成田",   region:"關東", lat:35.7647, lng:140.3864, lab:"right"},
+  HND:{name:"東京羽田",   region:"關東", lat:35.5494, lng:139.7798, lab:"bottom"},
+  KIJ:{name:"新潟",       region:"中部・北陸", lat:37.9559, lng:139.1210, lab:"left"},
+  TOY:{name:"富山",       region:"中部・北陸", lat:36.6483, lng:137.1875, lab:"top"},
+  KMQ:{name:"小松",       region:"中部・北陸", lat:36.3946, lng:136.4067, lab:"left"},
+  NGO:{name:"名古屋中部", region:"中部・北陸", lat:34.8584, lng:136.8050, lab:"bottom"},
+  KIX:{name:"大阪關西",   region:"近畿", lat:34.4347, lng:135.2440, lab:"bottom"},
+  UKB:{name:"神戶",       region:"近畿", lat:34.6328, lng:135.2239, lab:"top"},
+  YGJ:{name:"米子",       region:"中國", lat:35.4922, lng:133.2364, lab:"top"},
+  OKJ:{name:"岡山",       region:"中國", lat:34.7569, lng:133.8553, lab:"top"},
+  HIJ:{name:"廣島",       region:"中國", lat:34.4361, lng:132.9194, lab:"left"},
+  TAK:{name:"高松",       region:"四國", lat:34.2142, lng:134.0156, lab:"right"},
+  MYJ:{name:"松山（愛媛）", region:"四國", lat:33.8272, lng:132.6997, lab:"left"},
+  KCZ:{name:"高知",       region:"四國", lat:33.5461, lng:133.6694, lab:"bottom"},
+  KKJ:{name:"北九州",     region:"九州", lat:33.8459, lng:131.0350, lab:"top"},
+  FUK:{name:"福岡",       region:"九州", lat:33.5859, lng:130.4510, lab:"left"},
+  HSG:{name:"佐賀",       region:"九州", lat:33.1497, lng:130.3022, lab:"left"},
+  OIT:{name:"大分",       region:"九州", lat:33.4794, lng:131.7372, lab:"bottom"},
+  KMJ:{name:"熊本",       region:"九州", lat:32.8373, lng:130.8550, lab:"right"},
+  KMI:{name:"宮崎",       region:"九州", lat:31.8772, lng:131.4486, lab:"right"},
+  KOJ:{name:"鹿兒島",     region:"九州", lat:31.8034, lng:130.7194, lab:"left"},
+  OKA:{name:"沖繩那霸",   region:"沖繩", lat:26.1958, lng:127.6459, lab:"right"},
+  SHI:{name:"宮古下地島", region:"沖繩", lat:24.8267, lng:125.1447, lab:"top"},
+  ISG:{name:"石垣",       region:"沖繩", lat:24.3964, lng:124.2450, lab:"bottom"}
+};
+const AL = {
+  CI:"中華航空", BR:"長榮航空", JX:"星宇航空", IT:"台灣虎航", JL:"日本航空", NH:"全日空",
+  MM:"樂桃航空", GK:"捷星日本", NU:"日本越洋航空", "7G":"星悅航空", CX:"國泰航空", TR:"酷航",
+  SL:"泰國獅子航空", VZ:"泰越捷航空", FD:"泰國亞洲航空", D7:"亞洲航空X", AK:"亞洲航空", UA:"聯合航空"
+};
+const FIFTH = new Set(["CX","TR","SL","VZ","FD","D7","AK","UA"]); // 第五航權（第三國航空）
+// 航線：jp, tw, a=航空公司[代碼 或 [代碼,註記]], tags, note
+const ROUTES = [
+  // ---- 松山 TSA ----
+  {jp:"HND",tw:"TSA",a:["CI","BR","JL","NH"]},
+  // ---- 桃園 TPE ----
+  {jp:"NRT",tw:"TPE",a:["CI","BR","JX","IT","JL","MM","GK","CX","TR","SL"]},
+  {jp:"HND",tw:"TPE",a:["IT","MM"]},
+  {jp:"KIX",tw:"TPE",a:["CI","BR","JX","IT","MM","GK","CX","D7","SL","VZ",["JL","2026/9/18–10/12 連假加班機"]]},
+  {jp:"UKB",tw:"TPE",a:["BR","JX"], note:"天馬航空（Skymark）另有包機，未列入"},
+  {jp:"NGO",tw:"TPE",a:["CI","JX","IT","MM","JL","CX","SL"]},
+  {jp:"FUK",tw:"TPE",a:["CI","BR","JX","IT","AK"]},
+  {jp:"KKJ",tw:"TPE",a:["7G"], tags:["new"], note:"星悅航空 2026/9/2 復航（深夜／凌晨班）"},
+  {jp:"HSG",tw:"TPE",a:["IT"]},
+  {jp:"KMJ",tw:"TPE",a:["CI","JX"]},
+  {jp:"KOJ",tw:"TPE",a:["CI"]},
+  {jp:"KMI",tw:"TPE",a:["IT"]},
+  {jp:"OIT",tw:"TPE",a:["IT"]},
+  {jp:"OKA",tw:"TPE",a:["CI","BR","JX","IT","MM","NU","FD","SL","VZ"]},
+  {jp:"ISG",tw:"TPE",a:["IT"], note:"華航過去僅暑期季節性飛航，2026 年已停飛，未列入"},
+  {jp:"SHI",tw:"TPE",a:["JX"]},
+  {jp:"CTS",tw:"TPE",a:["CI","BR","JX","IT","TR","FD","VZ"]},
+  {jp:"HKD",tw:"TPE",a:["IT","JX"]},
+  {jp:"AOJ",tw:"TPE",a:["BR"]},
+  {jp:"AXT",tw:"TPE",a:["IT"]},
+  {jp:"HNA",tw:"TPE",a:["IT"]},
+  {jp:"SDJ",tw:"TPE",a:["BR","JX","IT"]},
+  {jp:"FKS",tw:"TPE",a:["IT"]},
+  {jp:"KIJ",tw:"TPE",a:["IT"]},
+  {jp:"TOY",tw:"TPE",a:["CI"], tags:["seasonal"], note:"季節性；2026/8/20 復飛（週一、四）"},
+  {jp:"KMQ",tw:"TPE",a:["BR","IT"]},
+  {jp:"OKJ",tw:"TPE",a:["IT"]},
+  {jp:"HIJ",tw:"TPE",a:["CI"]},
+  {jp:"YGJ",tw:"TPE",a:["IT"]},
+  {jp:"TAK",tw:"TPE",a:["CI"]},
+  {jp:"MYJ",tw:"TPE",a:["BR"]},
+  {jp:"KCZ",tw:"TPE",a:["IT"]},
+  // ---- 臺中 RMQ ----
+  {jp:"NRT",tw:"RMQ",a:["JX"]},
+  {jp:"UKB",tw:"RMQ",a:["JX"]},
+  {jp:"NGO",tw:"RMQ",a:["IT"], note:"星宇航空 2026/10/25 起加入"},
+  {jp:"KMJ",tw:"RMQ",a:["JX"]},
+  {jp:"OKA",tw:"RMQ",a:[["CI","2026/7/21 開航"],"JX","IT"]},
+  {jp:"SHI",tw:"RMQ",a:["JX"]},
+  {jp:"TAK",tw:"RMQ",a:["JX"], tags:["seasonal"], note:"依季節班表調整班次"},
+  {jp:"CTS",tw:"RMQ",a:["JX"], tags:["new"], note:"2026/10/2 開航"},
+  {jp:"KKJ",tw:"RMQ",a:["CI"], tags:["limited","uncertain"], note:"期間限定 2026/9/1–10/23，偏包機性質"},
+  // ---- 臺南 TNN ----
+  {jp:"KMJ",tw:"TNN",a:["IT"], note:"2025/12/23 開航，週二、五"},
+  {jp:"OKA",tw:"TNN",a:["IT"], tags:["uncertain"], note:"2025/12/25 開航，週四、日；冬季班表促銷未列出，冬季是否續飛待確認"},
+  // ---- 高雄 KHH ----
+  {jp:"NRT",tw:"KHH",a:["CI","BR","IT","GK","FD","UA"]},
+  {jp:"KIX",tw:"KHH",a:["CI","BR","IT","MM","AK"]},
+  {jp:"NGO",tw:"KHH",a:["IT"]},
+  {jp:"FUK",tw:"KHH",a:["CI","BR","IT"]},
+  {jp:"KMJ",tw:"KHH",a:["CI","IT"]},
+  {jp:"OKA",tw:"KHH",a:["CI","IT","SL"], note:"捷星日本 2026/12/6、星宇 2027/1/1 起加入"},
+  {jp:"CTS",tw:"KHH",a:["IT","SL"]},
+  {jp:"SDJ",tw:"KHH",a:["IT"]},
+  {jp:"OKJ",tw:"KHH",a:["IT"]},
+  {jp:"ISG",tw:"KHH",a:["IT"], tags:["new"], note:"2026/9/2 開航，週三、日"},
+  {jp:"KMQ",tw:"KHH",a:["IT"], tags:["new"], note:"2026/9/3 開航，週四、日"}
+];
+const UPCOMING = [
+  "臺中－名古屋中部：星宇航空 2026/10/25 起",
+  "高雄－沖繩那霸：捷星日本 2026/12/6 起；星宇航空 2027/1/1 起",
+  "高雄－神戶：星宇航空 2027/1/1 起（新航線，未繪於地圖）"
+];
+const SUSPENDED = [
+  "桃園－茨城（台灣虎航）：2025/10/26 起停飛",
+  "桃園－旭川（台灣虎航）：2026/3/29 起停飛（旭川國際定期航班歸零）",
+  "桃園－石垣（中華航空）：僅暑期季節航班，2026 年停飛",
+  "桃園－靜岡（中華航空）：僅跨年包機（2025/12/27–2026/1/2），非定期",
+  "桃園－神戶（天馬航空）、桃園－成田（ZIPAIR）：包機，未列入"
+];
+const TAG_TXT = {seasonal:["季節性","b-seasonal"], new:["新航線","b-new"], limited:["期間限定","b-limited"], uncertain:["待確認","b-uncertain"]};
+
+// ===================== 預處理 =====================
+ROUTES.forEach((r,i)=>{
+  r.id=i;
+  r.tags = r.tags||[];
+  r.airlines = r.a.map(x=> Array.isArray(x)? {c:x[0], n:x[1]} : {c:x});
+  r.nAir = r.airlines.length;
+  r.region = JP[r.jp].region;
+});
+document.getElementById("nRoutes").textContent = ROUTES.length;
+document.getElementById("nJp").textContent = new Set(ROUTES.map(r=>r.jp)).size;
+document.getElementById("nTw").textContent = new Set(ROUTES.map(r=>r.tw)).size;
+
+function airlineHTML(r, short){
+  return r.airlines.map(a=>{
+    let s = AL[a.c] || a.c;
+    if (FIFTH.has(a.c)) s += '<span class="badge b-5th" title="第三國航空公司以第五航權經營">5th</span>';
+    if (a.n) s += `<span class="badge b-limited">${a.n}</span>`;
+    return s;
+  }).join("、");
+}
+function tagHTML(r){ return r.tags.map(t=>`<span class="badge ${TAG_TXT[t][1]}">${TAG_TXT[t][0]}</span>`).join(""); }
+
+// ===================== 地圖 =====================
+let map=null, hasMap = (typeof L !== "undefined");
+const routeLayers = {}; // id -> {line, hit}
+const jpMarkers = {}, twMarkers = {};
+let hlState = null;
+
+function arcPoints(a, b, k, n=48){
+  // 以近似 Web Mercator 平面座標計算二次貝茲曲線，避免高緯度變形
+  const P = p => [p[1], Math.log(Math.tan(Math.PI/4 + p[0]*Math.PI/360))*180/Math.PI];
+  const U = q => [ (2*Math.atan(Math.exp(q[1]*Math.PI/180)) - Math.PI/2)*180/Math.PI, q[0] ];
+  const A=P(a), B=P(b);
+  const mx=(A[0]+B[0])/2, my=(A[1]+B[1])/2, dx=B[0]-A[0], dy=B[1]-A[1];
+  const C=[mx - dy*k, my + dx*k];
+  const pts=[];
+  for(let i=0;i<=n;i++){ const t=i/n, u=1-t;
+    pts.push(U([u*u*A[0]+2*u*t*C[0]+t*t*B[0], u*u*A[1]+2*u*t*C[1]+t*t*B[1]])); }
+  return pts;
+}
+
+// 為同一台灣機場出發的航線依方位角給予細微曲率差異（扇形展開）
+function computeCurvatures(){
+  TW_ORDER.forEach(tw=>{
+    const rs = ROUTES.filter(r=>r.tw===tw);
+    rs.forEach(r=>{ const j=JP[r.jp], t=TW[tw]; r.bearing=Math.atan2(j.lat-t.lat, j.lng-t.lng); r.dist=Math.hypot(j.lat-t.lat,j.lng-t.lng); });
+    const sorted=[...rs].sort((a,b)=>a.bearing-b.bearing);
+    sorted.forEach((r,i)=>{
+      // 依方位角排序後，由 -0.5 到 +0.5 分配：偏東者向東南彎、偏北者向西北彎，放大起點處的角度差，形成扇形
+      const spread = sorted.length>1 ? (i/(sorted.length-1)-0.5) : 0;
+      let k = TW[tw].k + spread*SPREAD[tw];
+      if (r.dist < 4) k = (k>=0? 1:-1) * Math.max(Math.abs(k),0.25) * 1.3; // 近距離（沖繩、石垣）加大弧度以利辨識
+      r.k = k;
+    });
+  });
+}
+
+function baseStyle(r){ const c=TW[r.tw].color; const d=r.tags.includes("uncertain")||r.tags.includes("limited");
+  return {color:c, weight:2, opacity:0.55, dashArray: d? "5 5": null}; }
+
+function initMap(){
+  map = L.map("map", {zoomSnap:0.25, preferCanvas:false, worldCopyJump:false}).setView([31.5, 131.5], 5);
+  // 淺色底圖：Esri World Light Gray Canvas（免金鑰）；若載入失敗自動改用 OpenStreetMap
+  let tileErr=0, switched=false;
+  const base = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+    attribution:'底圖 &copy; Esri, HERE, Garmin, &copy; OpenStreetMap 貢獻者', maxZoom:16
+  }).addTo(map);
+  base.on("tileerror", ()=>{ if(++tileErr>4 && !switched){ switched=true; map.removeLayer(base);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'&copy; OpenStreetMap 貢獻者', maxZoom:12, className:"osm-faded"}).addTo(map);} });
+  map.createPane("routes"); map.getPane("routes").style.zIndex=410;
+  map.createPane("hit"); map.getPane("hit").style.zIndex=420;
+  map.createPane("apts"); map.getPane("apts").style.zIndex=630;
+
+  computeCurvatures();
+  ROUTES.forEach(r=>{
+    const t=TW[r.tw], j=JP[r.jp];
+    const pts = arcPoints([t.lat,t.lng],[j.lat,j.lng], r.k);
+    const line = L.polyline(pts, Object.assign({pane:"routes", interactive:false}, baseStyle(r))).addTo(map);
+    const hit = L.polyline(pts, {pane:"hit", color:"#000", opacity:0, weight:11}).addTo(map);
+    hit.bindTooltip(()=>routeTip(r), {sticky:true, className:"route-tip", direction:"top", opacity:0.96});
+    hit.on("mouseover", ()=>{ highlight([r.id], {jp:[r.jp], tw:[r.tw]}); scrollToRow(r.id); });
+    hit.on("mouseout", clearHighlight);
+    routeLayers[r.id]={line, hit};
+  });
+
+  // 機場標記
+  const usedJp = new Set(ROUTES.map(r=>r.jp));
+  Object.entries(JP).forEach(([code,a])=>{
+    if(!usedJp.has(code)) return;
+    const m = L.circleMarker([a.lat,a.lng], {pane:"apts", radius:5, color:"#fff", weight:1.5, fillColor:"#0b6e75", fillOpacity:1}).addTo(map);
+    m.bindTooltip(`${a.name} <span style="color:#777">${code}</span>`, {permanent:true, direction:a.lab||"right", className:"apt-label", offset: offsetFor(a.lab)});
+    m.on("mouseover", ()=>{ const ids=ROUTES.filter(r=>r.jp===code && twVisible(r.tw)).map(r=>r.id);
+      highlight(ids, {jp:[code], tw:[...new Set(ids.map(i=>ROUTES[i].tw))]}); if(ids.length) scrollToRow(ids[0]); });
+    m.on("mouseout", clearHighlight);
+    m.bindPopup(()=>aptPopup(code));
+    jpMarkers[code]=m;
+  });
+  Object.entries(TW).forEach(([code,a])=>{
+    const m = L.circleMarker([a.lat,a.lng], {pane:"apts", radius:8, color:"#fff", weight:2, fillColor:a.color, fillOpacity:1}).addTo(map);
+    m.bindTooltip(`${a.name} <span style="color:#777">${code}</span>`, {permanent:true, direction:a.lab, className:"apt-label tw", offset: offsetFor(a.lab, 9)});
+    m.on("mouseover", ()=>{ if(!twVisible(code)) return; const ids=ROUTES.filter(r=>r.tw===code).map(r=>r.id);
+      highlight(ids, {tw:[code], jp:[...new Set(ids.map(i=>ROUTES[i].jp))]}); });
+    m.on("mouseout", clearHighlight);
+    twMarkers[code]=m;
+  });
+
+  // 圖例
+  const legend = L.control({position:"topleft"});
+  legend.onAdd = ()=>{ const d=L.DomUtil.create("div","legend");
+    d.innerHTML = "<b>圖例（依台灣出發機場上色）</b><br>" +
+      TW_ORDER.map(c=>`<span class="ln" style="border-color:${TW[c].color}"></span>${TW[c].name} ${c}`).join("<br>") +
+      `<br><span class="ln dash" style="border-color:#777"></span>期間限定／待確認航線` +
+      `<br><span class="sw" style="background:#0b6e75;width:10px;height:10px"></span> 日本機場　<span class="sw" style="background:#d62728;width:12px;height:12px"></span> 台灣機場`;
+    return d; };
+  legend.addTo(map);
+  fitAll();
+}
+function offsetFor(dir, r=6){ return dir==="left"?[-r,0]:dir==="right"?[r,0]:dir==="top"?[0,-r]:[0,r]; }
+function fitAll(){ const pts=[...Object.values(JP),...Object.values(TW)].map(a=>[a.lat,a.lng]); map.fitBounds(pts,{paddingTopLeft:[30,30], paddingBottomRight:[30,40]}); }
+
+function routeTip(r){
+  const t=TW[r.tw], j=JP[r.jp];
+  return `<b>${t.name} ${r.tw}</b> ⇄ <b>${j.name} ${r.jp}</b><br>` +
+    `<span style="color:#666">${j.region}</span> ${tagHTML(r)}<br>` +
+    `航空公司（${r.nAir}）：${airlineHTML(r)}` + (r.note? `<br><span style="color:#555">※ ${r.note}</span>`:"");
+}
+function aptPopup(code){
+  const rs=ROUTES.filter(r=>r.jp===code);
+  return `<b>${JP[code].name} ${code}</b>（${JP[code].region}）<br>` + rs.map(r=>`<span class="tw-dot" style="background:${TW[r.tw].color}"></span>${TW[r.tw].short}：${r.airlines.map(a=>AL[a.c]).join("、")}`).join("<br>");
+}
+
+function twVisible(tw){ return document.querySelector(`input[data-tw="${tw}"]`).checked; }
+
+function highlight(ids, apts){
+  hlState = {ids, apts};
+  const set = new Set(ids);
+  if (map){
+    ROUTES.forEach(r=>{
+      const L1 = routeLayers[r.id].line;
+      if (!twVisible(r.tw)) return;
+      if (set.has(r.id)) { L1.setStyle({weight:5, opacity:1, color:TW[r.tw].color, dashArray:null}); L1.bringToFront(); }
+      else L1.setStyle({opacity:0.07, weight:1.5});
+    });
+    Object.entries(jpMarkers).forEach(([c,m])=>{ const on=apts.jp&&apts.jp.includes(c);
+      m.setStyle(on?{radius:8, fillColor:"#e60000", color:"#fff"}:{radius:5, fillColor:"#0b6e75"});
+      const el=m.getTooltip()&&m.getTooltip().getElement(); if(el) el.classList.toggle("hl", !!on); });
+    Object.entries(twMarkers).forEach(([c,m])=>{ const on=apts.tw&&apts.tw.includes(c);
+      m.setStyle(on?{radius:11, weight:3, color:"#222"}:{radius:8, weight:2, color:"#fff"});
+      const el=m.getTooltip()&&m.getTooltip().getElement(); if(el) el.classList.toggle("hl", !!on); });
+  }
+  document.querySelectorAll("tr.route").forEach(tr=>tr.classList.toggle("hl", set.has(+tr.dataset.id)));
+}
+function clearHighlight(){
+  hlState=null;
+  if (map){
+    ROUTES.forEach(r=>{ if(twVisible(r.tw)) routeLayers[r.id].line.setStyle(baseStyle(r)); });
+    Object.values(jpMarkers).forEach(m=>{ m.setStyle({radius:5, fillColor:"#0b6e75", color:"#fff"}); const el=m.getTooltip()&&m.getTooltip().getElement(); if(el) el.classList.remove("hl"); });
+    Object.entries(twMarkers).forEach(([c,m])=>{ m.setStyle({radius:8, weight:2, color:"#fff"}); const el=m.getTooltip()&&m.getTooltip().getElement(); if(el) el.classList.remove("hl"); });
+  }
+  document.querySelectorAll("tr.route.hl").forEach(tr=>tr.classList.remove("hl"));
+}
+function scrollToRow(id){
+  const tr=document.querySelector(`tr.route[data-id="${id}"]`); if(!tr||tr.classList.contains("hidden")) return;
+  const wrap=document.getElementById("tablewrap"); const r=tr.getBoundingClientRect(), w=wrap.getBoundingClientRect();
+  if (r.top < w.top+60 || r.bottom > w.bottom) wrap.scrollTop += (r.top - w.top) - w.height/3;
+}
+
+// ===================== 表格 =====================
+let sortKey="jp", sortDir=1;
+function regionIdx(r){ return REGIONS.indexOf(r.region); }
+function jpOrder(code){ return Object.keys(JP).indexOf(code); }
+function cmp(a,b){
+  let v=0;
+  if (sortKey==="jp") v = regionIdx(a)-regionIdx(b) || jpOrder(a.jp)-jpOrder(b.jp) || TW_ORDER.indexOf(a.tw)-TW_ORDER.indexOf(b.tw);
+  else if (sortKey==="tw") v = TW_ORDER.indexOf(a.tw)-TW_ORDER.indexOf(b.tw) || regionIdx(a)-regionIdx(b) || jpOrder(a.jp)-jpOrder(b.jp);
+  else if (sortKey==="nAir") v = a.nAir-b.nAir || regionIdx(a)-regionIdx(b);
+  else if (sortKey==="note") v = (b.tags.length+(b.note?1:0)) - (a.tags.length+(a.note?1:0)) || regionIdx(a)-regionIdx(b);
+  return v*sortDir;
+}
+function renderTable(){
+  const gb=document.getElementById("groupBy").value;
+  const tb=document.querySelector("#tbl tbody"); tb.innerHTML="";
+  let rows=[...ROUTES];
+  if (gb==="region") rows.sort((a,b)=> regionIdx(a)-regionIdx(b) || cmp(a,b));
+  else if (gb==="tw") rows.sort((a,b)=> TW_ORDER.indexOf(a.tw)-TW_ORDER.indexOf(b.tw) || cmp(a,b));
+  else rows.sort(cmp);
+  let lastG=null;
+  rows.forEach(r=>{
+    const g = gb==="region"? r.region : gb==="tw"? r.tw : null;
+    if (g!==null && g!==lastG){
+      const cnt = rows.filter(x=>(gb==="region"?x.region:x.tw)===g).length;
+      const tr=document.createElement("tr"); tr.className="grp"; tr.dataset.g=g;
+      tr.innerHTML = `<td colspan="4">${gb==="tw"? `<span class="tw-dot" style="background:${TW[g].color}"></span>${TW[g].name} ${g}` : g}　<span style="font-weight:normal;color:#678">（<span class="gc">${cnt}</span> 條）</span></td>`;
+      tb.appendChild(tr); lastG=g;
+    }
+    const j=JP[r.jp], t=TW[r.tw];
+    const tr=document.createElement("tr"); tr.className="route"; tr.dataset.id=r.id; tr.dataset.tw=r.tw; tr.dataset.g=g;
+    tr.innerHTML = `<td><b>${j.name}</b> <span class="code">${r.jp}</span><br><span style="color:#888;font-size:11px">${j.region}</span></td>`+
+      `<td style="white-space:nowrap"><span class="tw-dot" style="background:${t.color}"></span>${t.short} <span class="code">${r.tw}</span></td>`+
+      `<td>${airlineHTML(r)}</td>`+
+      `<td>${tagHTML(r)}${r.note? `<div style="color:#555;font-size:11.5px">${r.note}</div>`:""}</td>`;
+    tr.addEventListener("mouseenter", ()=>{ highlight([r.id], {jp:[r.jp], tw:[r.tw]}); });
+    tr.addEventListener("mouseleave", clearHighlight);
+    tr.addEventListener("click", ()=>{ if(map) map.fitBounds(L.latLngBounds([[t.lat,t.lng],[j.lat,j.lng]]).pad(0.25)); });
+    tb.appendChild(tr);
+  });
+  document.querySelectorAll("thead th").forEach(th=>th.querySelector(".arrow").textContent = th.dataset.k===sortKey? (sortDir>0?"▲":"▼") : "");
+  applyFilter();
+}
+function applyFilter(){
+  const vis = new Set(TW_ORDER.filter(twVisible));
+  document.querySelectorAll("tr.route").forEach(tr=>tr.classList.toggle("hidden", !vis.has(tr.dataset.tw)));
+  document.querySelectorAll("tr.grp").forEach(g=>{
+    const n=[...document.querySelectorAll(`tr.route[data-g="${CSS.escape(g.dataset.g)}"]`)].filter(tr=>!tr.classList.contains("hidden")).length;
+    g.querySelector(".gc").textContent=n; g.classList.toggle("hidden", n===0);
+  });
+  if (map){
+    ROUTES.forEach(r=>{ const on=vis.has(r.tw); const {line,hit}=routeLayers[r.id];
+      if(on){ if(!map.hasLayer(line)){line.addTo(map);hit.addTo(map);} line.setStyle(baseStyle(r)); }
+      else { line.remove(); hit.remove(); } });
+    const jpOn = new Set(ROUTES.filter(r=>vis.has(r.tw)).map(r=>r.jp));
+    Object.entries(jpMarkers).forEach(([c,m])=>{ if(jpOn.has(c)){ if(!map.hasLayer(m)) m.addTo(map);} else m.remove(); });
+    Object.entries(twMarkers).forEach(([c,m])=>{ m.setStyle({fillOpacity: vis.has(c)?1:0.25}); });
+  }
+  const shown = ROUTES.filter(r=>vis.has(r.tw));
+  document.getElementById("nRoutes").textContent = shown.length + (shown.length!==ROUTES.length? ` / ${ROUTES.length}`:"");
+  document.getElementById("nJp").textContent = new Set(shown.map(r=>r.jp)).size;
+}
+
+// 篩選器
+document.getElementById("twFilters").innerHTML = TW_ORDER.map(c=>{
+  const n=ROUTES.filter(r=>r.tw===c).length;
+  return `<label class="tw"><input type="checkbox" data-tw="${c}" checked><span class="sw" style="background:${TW[c].color}"></span>${TW[c].short} ${c}（${n}）</label>`; }).join("") +
+  ` <a href="#" id="allOn" style="font-size:12px">全選</a>`;
+document.querySelectorAll("#twFilters input").forEach(i=>i.addEventListener("change", applyFilter));
+document.getElementById("allOn").addEventListener("click", e=>{ e.preventDefault(); document.querySelectorAll("#twFilters input").forEach(i=>i.checked=true); applyFilter(); });
+document.getElementById("groupBy").addEventListener("change", renderTable);
+document.querySelectorAll("thead th").forEach(th=>th.addEventListener("click", ()=>{
+  const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=1; }
+  if (k==="jp" || k==="tw") document.getElementById("groupBy").value = (k==="jp"?"region":"tw");
+  if (k==="nAir" || k==="note") document.getElementById("groupBy").value = "none";
+  renderTable(); }));
+document.getElementById("showLabels").addEventListener("change", e=>{
+  document.querySelectorAll(".apt-label").forEach(el=>el.style.display = e.target.checked? "":"none"); });
+
+// 註腳
+document.getElementById("foot").innerHTML =
+  `<b>說明：</b>僅收錄 2026/10/2 時點有證據顯示正在經營（或本季班表內）之直飛定期客運航線；純包機不列入。「5th」＝第三國航空公司以第五航權經營（如曼谷／新加坡／香港／吉隆坡經台灣續飛日本），同樣為台日間不經停航段。班次及季節變動頻繁，請以各航空公司官網為準。<br>`+
+  `<b>即將開航（未繪製或僅註記）：</b>${UPCOMING.join("；")}<br>`+
+  `<b>已停飛／未列入：</b>${SUSPENDED.join("；")}<br>`+
+  `<b>主要資料來源：</b>英文維基百科各機場「Airlines and destinations」（桃園、松山、臺中、高雄、臺南及日本各機場頁面，2026/9 版）；`+
+  `<a href="https://www.cna.com.tw/news/ahel/202604100054.aspx" target="_blank">中央社：台灣虎航冬季班表</a>、`+
+  `<a href="https://udn.com/news/story/7270/9442328" target="_blank">聯合報：虎航冬季航線</a>、`+
+  `<a href="https://www.caa.gov.tw/" target="_blank">民航局新聞稿（台南—熊本／沖繩首航，2025/12/23）</a>、`+
+  `<a href="https://www.ttnmedia.com/?p=142510" target="_blank">旅報：虎航高雄—石垣、小松首航</a>、`+
+  `<a href="https://dannypingu.com/2026/08/25/taichung-to-japan-direct-flights/" target="_blank">台中直飛日本整理（2026/9/26 查核）</a>、`+
+  `<a href="https://ajunfun.tw/taiwan-japan-flights/" target="_blank">2026 下半年台日航線變化</a>、`+
+  `<a href="https://www.flypeach.com/en/lm/st/w_schedule" target="_blank">Peach 2026 冬季班表</a>、`+
+  `<a href="https://www.ibaraki-airport.net/post-251010131419/" target="_blank">茨城機場停飛公告</a>、`+
+  `<a href="https://www.nikkei.com/article/DGXZQOFC2712R0X20C26A3000000/" target="_blank">日經：旭川—台北停飛</a>、`+
+  `<a href="https://newsroom.airasia.com/news/airasia-reaffirms-commitment-to-kota-kinabalu-connectivity-with-new-route-to-fukuoka-via-taipei" target="_blank">AirAsia 亞庇—台北—福岡</a>、`+
+  `<a href="https://www.sabretn.com.tw/admin/fileupload/134290814067473636260721JL1.pdf" target="_blank">日航大阪—台北加班機公告</a>。<br>`+
+  `底圖：© Esri Light Gray Canvas（備援：© OpenStreetMap 貢獻者）。製作日期：2026/10/2。`;
+
+if (hasMap) { try { initMap(); } catch(e){ console.error(e); } }
+else { document.getElementById("fallback").style.display="block"; }
+renderTable();
+</script>
+</body>
+</html>
