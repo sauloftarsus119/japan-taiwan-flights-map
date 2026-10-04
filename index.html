@@ -520,7 +520,11 @@ function renderTable(){
       if (map){ map.closePopup(); fitRoute(r);
         const mr=document.getElementById("map").getBoundingClientRect();
         if (mr.bottom < 40 || mr.top > window.innerHeight-40) document.getElementById("map").scrollIntoView({behavior:"smooth", block:"start"});
-        if (isMobile()) setTimeout(()=>{ const c=routeLayers[r.id].line.getLatLngs(); routeLayers[r.id].hit.openTooltip(c[Math.floor(c.length/2)]); }, 650);
+        if (isMobile()) setTimeout(()=>{ // 行動版：選擇靠近地圖水平中央、位於下半部的航線點顯示資訊框，避免資訊框超出畫面
+          const c=routeLayers[r.id].line.getLatLngs(), sz=map.getSize();
+          let best=c[Math.floor(c.length/2)], bs=Infinity;
+          c.forEach(ll=>{ const p=map.latLngToContainerPoint(ll); if(p.y<sz.y*0.45||p.y>sz.y-10) return; const sc=Math.abs(p.x-sz.x/2); if(sc<bs){bs=sc;best=ll;} });
+          routeLayers[r.id].hit.openTooltip(best); }, 700);
       }
       // 行動版：被固定的卡片若被地圖遮住則捲至可見
       if (isMobile()){ const mb=document.getElementById("map").getBoundingClientRect().bottom, rr=tr.getBoundingClientRect();
