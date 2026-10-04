@@ -2,7 +2,8 @@
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a4f8a">
 <title>台灣－日本 直飛定期航線地圖（2026 年 10 月）</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -27,8 +28,10 @@
   thead th .arrow { color:#999; font-size:10px; }
   tbody td { padding:5px 6px; border-bottom:1px solid #eee; vertical-align:top; }
   tr.grp td { background:#e9eef3; font-weight:bold; color:#345; padding:4px 6px; position:sticky; top:29px; z-index:1; }
-  tr.route { cursor:default; }
-  tr.route:hover, tr.route.hl { background:#fff4c2; }
+  tr.route.hl { background:#fff4c2; }
+  tr.route.pin { box-shadow: inset 4px 0 0 #e60000; }
+  @media (hover:hover){ tr.route:hover { background:#fff4c2; } }
+  tr.route { cursor:pointer; }
   tr.route.hidden, tr.grp.hidden { display:none; }
   .code { font-family: ui-monospace, Menlo, Consolas, monospace; color:#555; font-size:11px; }
   .badge { display:inline-block; font-size:10.5px; padding:0 5px; border-radius:8px; margin:1px 2px 1px 0; white-space:nowrap; }
@@ -47,7 +50,62 @@
   .apt-label.tw { color:#111; font-size:12px; }
   .apt-label:before { display:none; }
   .apt-label.hl { color:#c00; font-size:13px; }
-  .leaflet-tooltip.route-tip { font-size:12.5px; line-height:1.5; width:300px; white-space:normal; }
+  .leaflet-tooltip.route-tip { font-size:12.5px; line-height:1.5; width:300px; max-width:calc(100vw - 40px); white-space:normal; }
+  .legend summary { cursor:pointer; font-weight:bold; list-style:none; outline:none; }
+  .legend summary::-webkit-details-marker { display:none; }
+  .legend summary:after { content:" ▾"; color:#777; }
+  .legend details[open] summary:after { content:" ▴"; }
+  .legend .lg-body { margin-top:2px; }
+  .reset-btn a { font-size:16px !important; font-weight:bold; }
+  #controls .row.mobile-only, .mobile-only { display:none; }
+  #controls #hint-touch { display:none; }
+  /* ===== 行動裝置（≤768px） ===== */
+  @media (max-width:768px){
+    html, body { height:auto; }
+    body { overflow-x:hidden; -webkit-text-size-adjust:100%; }
+    #app { display:flex; flex-direction:column; height:auto; width:100%; min-height:100vh; }
+    #side { display:contents; }
+    #side header { order:0; padding:10px 12px 8px; }
+    #side h1 { font-size:19px; }
+    #side .sub { font-size:13px; line-height:1.5; }
+    #map { order:1; flex:none; width:100%; height:55vh; height:55svh; position:sticky; top:0; z-index:500; border-bottom:2px solid #c9d3dc; }
+    #controls { order:2; padding:10px 12px; font-size:15px; }
+    #controls .row { gap:8px; margin:6px 0; }
+    #controls label.tw { padding:7px 12px; border-radius:18px; min-height:38px; font-size:14.5px; gap:6px; }
+    #controls label.tw input { width:18px; height:18px; }
+    #controls select { font-size:15px; min-height:38px; padding:4px 6px; max-width:100%; }
+    #controls label:not(.tw) { display:inline-flex; align-items:center; gap:5px; min-height:38px; }
+    #controls input[type=checkbox] { width:18px; height:18px; }
+    #allOn { display:inline-flex; align-items:center; min-height:38px; padding:0 6px; font-size:15px !important; }
+    #controls #hint-desk { display:none; }
+    #controls #hint-touch { display:block; }
+    #controls .row.mobile-only, .mobile-only { display:flex; align-items:center; gap:6px; }
+    #tablewrap { order:3; flex:none; overflow:visible; width:100%; }
+    table, tbody { display:block; width:100%; }
+    thead { display:none; }
+    table { font-size:14.5px; }
+    tr.grp { display:block; position:sticky; top:55vh; top:55svh; z-index:3; }
+    tr.grp td { display:block; position:static; padding:8px 12px; font-size:14.5px; }
+    tr.route { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; row-gap:3px; padding:10px 12px; border-bottom:1px solid #e3e3e3; background:#fff; }
+    tr.route.hl { background:#fff4c2; }
+    tr.route.hidden, tr.grp.hidden { display:none; }
+    tr.route td { display:block; padding:0; border:none; min-width:0; overflow-wrap:anywhere; }
+    tr.route td:nth-child(1) { grid-column:1; }
+    tr.route td:nth-child(2) { grid-column:2; text-align:right; }
+    tr.route td:nth-child(3) { grid-column:1 / -1; color:#333; }
+    tr.route td:nth-child(4) { grid-column:1 / -1; }
+    tr.route td:nth-child(4):empty { display:none; }
+    .code { font-size:12.5px; }
+    .badge { font-size:12px; padding:1px 6px; }
+    footer { order:4; max-height:none; font-size:13px; padding:12px; overflow-wrap:anywhere; }
+    .legend { font-size:12.5px; padding:6px 9px; max-width:62vw; }
+    .leaflet-tooltip.route-tip { font-size:14px; width:270px; }
+    .leaflet-popup-content { font-size:14px; line-height:1.6; }
+    .apt-label { font-size:10px; }
+    .apt-label.tw { font-size:11px; }
+    .leaflet-control-attribution { font-size:9px; max-width:70vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .leaflet-touch .leaflet-bar a { width:36px; height:36px; line-height:36px; }
+  }
   #fallback { display:none; padding:20px; }
   .osm-faded { filter: grayscale(1) brightness(1.08) contrast(.85); opacity:.75; }
   .stat { font-weight:bold; color:#1a4f8a; }
@@ -71,7 +129,16 @@
         </select>
         <label><input type="checkbox" id="showLabels" checked> 顯示機場名稱</label>
       </div>
-      <div class="row" style="color:#666;font-size:12px">滑鼠移到表格列或地圖航線上即可高亮；移到日本機場可顯示其所有航線。點表頭可排序。</div>
+      <div class="row mobile-only"><b>排序：</b>
+        <select id="sortBy">
+          <option value="jp">日本機場（地區）</option>
+          <option value="tw">台灣機場</option>
+          <option value="nAir">航空公司數（多→少）</option>
+          <option value="note">有備註優先</option>
+        </select>
+      </div>
+      <div class="row" id="hint-desk" style="color:#666;font-size:12px">滑鼠移到表格列或地圖航線上即可高亮；移到日本機場可顯示其所有航線。點選表格列可固定高亮並縮放至該航線，點地圖空白處取消。點表頭可排序。</div>
+      <div class="row" id="hint-touch" style="color:#666;font-size:13.5px">👆 點選下方航線卡片可在地圖上高亮並縮放至該航線；點地圖上的航線或機場可查看資訊；點地圖空白處取消。</div>
     </div>
     <div id="tablewrap">
       <table id="tbl">
@@ -241,6 +308,9 @@ let map=null, hasMap = (typeof L !== "undefined");
 const routeLayers = {}; // id -> {line, hit}
 const jpMarkers = {}, twMarkers = {};
 let hlState = null;
+let pinned = null; // 固定（點選）的高亮：{ids, apts, rowId}
+const isMobile = ()=> window.matchMedia("(max-width:768px)").matches;
+const isTouch = ()=> window.matchMedia("(hover:none)").matches || ("ontouchstart" in window);
 
 function arcPoints(a, b, k, n=48){
   // 以近似 Web Mercator 平面座標計算二次貝茲曲線，避免高緯度變形
@@ -275,7 +345,8 @@ function baseStyle(r){ const c=TW[r.tw].color; const d=r.tags.includes("uncertai
   return {color:c, weight:2, opacity:0.55, dashArray: d? "5 5": null}; }
 
 function initMap(){
-  map = L.map("map", {zoomSnap:0.25, preferCanvas:false, worldCopyJump:false}).setView([31.5, 131.5], 5);
+  map = L.map("map", {zoomSnap:0.25, preferCanvas:false, worldCopyJump:false, zoomControl:false, tapTolerance:20}).setView([31.5, 131.5], 5);
+  L.control.zoom({position: isMobile()? "bottomright":"topleft"}).addTo(map);
   // 淺色底圖：Esri World Light Gray Canvas（免金鑰）；若載入失敗自動改用 OpenStreetMap
   let tileErr=0, switched=false;
   const base = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
@@ -292,10 +363,12 @@ function initMap(){
     const t=TW[r.tw], j=JP[r.jp];
     const pts = arcPoints([t.lat,t.lng],[j.lat,j.lng], r.k);
     const line = L.polyline(pts, Object.assign({pane:"routes", interactive:false}, baseStyle(r))).addTo(map);
-    const hit = L.polyline(pts, {pane:"hit", color:"#000", opacity:0, weight:11}).addTo(map);
+    const hit = L.polyline(pts, {pane:"hit", color:"#000", opacity:0, weight: isTouch()? 18 : 11}).addTo(map);
     hit.bindTooltip(()=>routeTip(r), {sticky:true, className:"route-tip", direction:"top", opacity:0.96});
-    hit.on("mouseover", ()=>{ highlight([r.id], {jp:[r.jp], tw:[r.tw]}); scrollToRow(r.id); });
+    hit.on("mouseover", ()=>{ highlight([r.id], {jp:[r.jp], tw:[r.tw]}); if(!isMobile()) scrollToRow(r.id); });
     hit.on("mouseout", clearHighlight);
+    hit.on("click", e=>{ L.DomEvent.stopPropagation(e); map.closePopup();
+      pin([r.id], {jp:[r.jp], tw:[r.tw]}, r.id); hit.openTooltip(e.latlng); if(!isMobile()) scrollToRow(r.id); });
     routeLayers[r.id]={line, hit};
   });
 
@@ -308,7 +381,9 @@ function initMap(){
     m.on("mouseover", ()=>{ const ids=ROUTES.filter(r=>r.jp===code && twVisible(r.tw)).map(r=>r.id);
       highlight(ids, {jp:[code], tw:[...new Set(ids.map(i=>ROUTES[i].tw))]}); if(ids.length) scrollToRow(ids[0]); });
     m.on("mouseout", clearHighlight);
-    m.bindPopup(()=>aptPopup(code));
+    m.on("click", e=>{ L.DomEvent.stopPropagation(e); const ids=ROUTES.filter(r=>r.jp===code && twVisible(r.tw)).map(r=>r.id);
+      pin(ids, {jp:[code], tw:[...new Set(ids.map(i=>ROUTES[i].tw))]}, null); });
+    m.bindPopup(()=>aptPopup(code), {maxWidth: 280, autoPanPaddingTopLeft:[10,10]});
     jpMarkers[code]=m;
   });
   Object.entries(TW).forEach(([code,a])=>{
@@ -317,22 +392,36 @@ function initMap(){
     m.on("mouseover", ()=>{ if(!twVisible(code)) return; const ids=ROUTES.filter(r=>r.tw===code).map(r=>r.id);
       highlight(ids, {tw:[code], jp:[...new Set(ids.map(i=>ROUTES[i].jp))]}); });
     m.on("mouseout", clearHighlight);
+    m.on("click", e=>{ L.DomEvent.stopPropagation(e); if(!twVisible(code)) return; const ids=ROUTES.filter(r=>r.tw===code).map(r=>r.id);
+      pin(ids, {tw:[code], jp:[...new Set(ids.map(i=>ROUTES[i].jp))]}, null);
+      L.popup({maxWidth:260}).setLatLng([a.lat,a.lng]).setContent(`<b>${a.name} ${code}</b><br>直飛日本 ${ids.length} 條航線`).openOn(map); });
     twMarkers[code]=m;
   });
 
   // 圖例
   const legend = L.control({position:"topleft"});
   legend.onAdd = ()=>{ const d=L.DomUtil.create("div","legend");
-    d.innerHTML = "<b>圖例（依台灣出發機場上色）</b><br>" +
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    d.innerHTML = `<details ${isMobile()?"":"open"}><summary>圖例${isMobile()?"":"（依台灣出發機場上色）"}</summary><div class="lg-body">` +
       TW_ORDER.map(c=>`<span class="ln" style="border-color:${TW[c].color}"></span>${TW[c].name} ${c}`).join("<br>") +
       `<br><span class="ln dash" style="border-color:#777"></span>期間限定／待確認航線` +
-      `<br><span class="sw" style="background:#0b6e75;width:10px;height:10px"></span> 日本機場　<span class="sw" style="background:#d62728;width:12px;height:12px"></span> 台灣機場`;
+      `<br><span class="sw" style="background:#0b6e75;width:10px;height:10px"></span> 日本機場　<span class="sw" style="background:#d62728;width:12px;height:12px"></span> 台灣機場</div></details>`;
     return d; };
   legend.addTo(map);
+  // 全覽按鈕
+  const reset = L.control({position: isMobile()? "bottomright":"topleft"});
+  reset.onAdd = ()=>{ const d=L.DomUtil.create("div","leaflet-bar reset-btn"); d.innerHTML='<a href="#" title="顯示全部" role="button" aria-label="顯示全部">⤢</a>';
+    L.DomEvent.disableClickPropagation(d);
+    d.querySelector("a").addEventListener("click", e=>{ e.preventDefault(); unpin(); map.closePopup(); fitAll(); }); return d; };
+  reset.addTo(map);
+  map.on("click", ()=>{ unpin(); });
   fitAll();
 }
 function offsetFor(dir, r=6){ return dir==="left"?[-r,0]:dir==="right"?[r,0]:dir==="top"?[0,-r]:[0,r]; }
-function fitAll(){ const pts=[...Object.values(JP),...Object.values(TW)].map(a=>[a.lat,a.lng]); map.fitBounds(pts,{paddingTopLeft:[30,30], paddingBottomRight:[30,40]}); }
+function fitAll(){ const pts=[...Object.values(JP),...Object.values(TW)].map(a=>[a.lat,a.lng]);
+  const m=isMobile(); map.fitBounds(pts, m? {paddingTopLeft:[78,46], paddingBottomRight:[46,14]} : {paddingTopLeft:[30,30], paddingBottomRight:[30,40]}); }
+function fitRoute(r){ if(!map) return; const b=routeLayers[r.id].line.getBounds();
+  const m=isMobile(); map.flyToBounds(b, {paddingTopLeft: m?[70,50]:[80,60], paddingBottomRight: m?[70,30]:[80,60], maxZoom:8, duration:0.6}); }
 
 function routeTip(r){
   const t=TW[r.tw], j=JP[r.jp];
@@ -366,7 +455,15 @@ function highlight(ids, apts){
   }
   document.querySelectorAll("tr.route").forEach(tr=>tr.classList.toggle("hl", set.has(+tr.dataset.id)));
 }
+function pin(ids, apts, rowId){
+  pinned = {ids, apts, rowId};
+  highlight(ids, apts);
+  document.querySelectorAll("tr.route.pin").forEach(tr=>tr.classList.remove("pin"));
+  if (rowId!=null){ const tr=document.querySelector(`tr.route[data-id="${rowId}"]`); if(tr) tr.classList.add("pin"); }
+}
+function unpin(){ pinned=null; document.querySelectorAll("tr.route.pin").forEach(tr=>tr.classList.remove("pin")); clearHighlight(); }
 function clearHighlight(){
+  if (pinned){ highlight(pinned.ids, pinned.apts); return; }
   hlState=null;
   if (map){
     ROUTES.forEach(r=>{ if(twVisible(r.tw)) routeLayers[r.id].line.setStyle(baseStyle(r)); });
@@ -417,14 +514,28 @@ function renderTable(){
       `<td>${tagHTML(r)}${r.note? `<div style="color:#555;font-size:11.5px">${r.note}</div>`:""}</td>`;
     tr.addEventListener("mouseenter", ()=>{ highlight([r.id], {jp:[r.jp], tw:[r.tw]}); });
     tr.addEventListener("mouseleave", clearHighlight);
-    tr.addEventListener("click", ()=>{ if(map) map.fitBounds(L.latLngBounds([[t.lat,t.lng],[j.lat,j.lng]]).pad(0.25)); });
+    tr.addEventListener("click", ()=>{
+      if (pinned && pinned.rowId===r.id){ unpin(); return; }
+      pin([r.id], {jp:[r.jp], tw:[r.tw]}, r.id);
+      if (map){ map.closePopup(); fitRoute(r);
+        const mr=document.getElementById("map").getBoundingClientRect();
+        if (mr.bottom < 40 || mr.top > window.innerHeight-40) document.getElementById("map").scrollIntoView({behavior:"smooth", block:"start"});
+        if (isMobile()) setTimeout(()=>{ const c=routeLayers[r.id].line.getLatLngs(); routeLayers[r.id].hit.openTooltip(c[Math.floor(c.length/2)]); }, 650);
+      }
+      // 行動版：被固定的卡片若被地圖遮住則捲至可見
+      if (isMobile()){ const mb=document.getElementById("map").getBoundingClientRect().bottom, rr=tr.getBoundingClientRect();
+        if (rr.top < mb+4) window.scrollBy({top: rr.top-mb-40, behavior:"smooth"}); }
+    });
     tb.appendChild(tr);
   });
   document.querySelectorAll("thead th").forEach(th=>th.querySelector(".arrow").textContent = th.dataset.k===sortKey? (sortDir>0?"▲":"▼") : "");
   applyFilter();
+  if (pinned){ highlight(pinned.ids, pinned.apts); if(pinned.rowId!=null){ const tr=document.querySelector(`tr.route[data-id="${pinned.rowId}"]`); if(tr) tr.classList.add("pin"); } }
 }
 function applyFilter(){
   const vis = new Set(TW_ORDER.filter(twVisible));
+  if (pinned && pinned.ids.some(id=>!vis.has(ROUTES[id].tw))) { pinned=null; document.querySelectorAll("tr.route.pin").forEach(tr=>tr.classList.remove("pin")); }
+  if (map) map.closePopup();
   document.querySelectorAll("tr.route").forEach(tr=>tr.classList.toggle("hidden", !vis.has(tr.dataset.tw)));
   document.querySelectorAll("tr.grp").forEach(g=>{
     const n=[...document.querySelectorAll(`tr.route[data-g="${CSS.escape(g.dataset.g)}"]`)].filter(tr=>!tr.classList.contains("hidden")).length;
@@ -456,6 +567,10 @@ document.querySelectorAll("thead th").forEach(th=>th.addEventListener("click", (
   if (k==="jp" || k==="tw") document.getElementById("groupBy").value = (k==="jp"?"region":"tw");
   if (k==="nAir" || k==="note") document.getElementById("groupBy").value = "none";
   renderTable(); }));
+document.getElementById("sortBy").addEventListener("change", e=>{
+  const k=e.target.value; sortKey=k; sortDir = k==="nAir"? -1 : 1;
+  document.getElementById("groupBy").value = k==="jp"?"region": k==="tw"?"tw":"none"; renderTable(); });
+let rzT=null; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ if(map) map.invalidateSize(); }, 150); });
 document.getElementById("showLabels").addEventListener("change", e=>{
   document.querySelectorAll(".apt-label").forEach(el=>el.style.display = e.target.checked? "":"none"); });
 
